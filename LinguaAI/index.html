@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lingua AI" />
+  <meta name="description" content="Translate any language to English instantly using AI" />
+  <title>Lingua AI – Universal Translator</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #00ff88;
+      --bg: #0a0a0f;
+      --surface: #0d0d14;
+      --border: #1e1e2e;
+      --text: #e0e0e0;
+      --muted: #444;
+      --dim: #2a2a3a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      overflow-x: hidden;
+    }
+
+    /* Grid bg */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+
+    /* Header */
+    header { padding: 40px 0 28px; }
+    .badge {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 12px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .badge span { color: var(--green); font-size: 11px; letter-spacing: 3px; }
+    h1 { font-family: Georgia, serif; font-size: clamp(30px, 8vw, 52px); font-weight: 900; letter-spacing: -2px; line-height: 1; margin-bottom: 6px; }
+    h1 em { color: var(--green); font-style: normal; }
+    .subtitle { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+
+    /* Lang pills */
+    .lang-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pill {
+      padding: 5px 12px; border-radius: 2px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-family: 'Courier New', monospace;
+      font-size: 10px; letter-spacing: 1px; cursor: pointer; transition: all 0.15s;
+    }
+    .pill.active { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: 700; }
+    .pill:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+    select.more {
+      padding: 5px 10px; border-radius: 2px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-family: 'Courier New', monospace;
+      font-size: 10px; outline: none; cursor: pointer;
+    }
+    select.more option { background: #0d0d14; color: var(--text); }
+
+    /* Panels */
+    .panels { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media(min-width: 640px) { .panels { grid-template-columns: 1fr 56px 1fr; gap: 0; } }
+
+    .panel {
+      border: 1px solid var(--border); background: var(--surface);
+      display: flex; flex-direction: column; border-radius: 4px;
+    }
+    @media(min-width: 640px) {
+      .panel:first-child { border-radius: 4px 0 0 4px; border-right: none; }
+      .panel:last-child { border-radius: 0 4px 4px 0; border-left: none; }
+    }
+
+    .panel-header {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; min-height: 40px;
+    }
+    .panel-label { color: var(--dim); font-size: 10px; letter-spacing: 2px; }
+    .detected-badge {
+      color: var(--green); font-size: 10px; letter-spacing: 1px;
+      padding: 2px 8px; border: 1px solid rgba(0,255,136,0.3); border-radius: 2px;
+    }
+
+    textarea {
+      flex: 1; background: transparent; border: none; color: var(--text);
+      font-size: 15px; line-height: 1.7; padding: 16px; resize: none;
+      outline: none; font-family: 'Courier New', monospace;
+      min-height: 180px; caret-color: var(--green);
+    }
+    textarea::placeholder { color: var(--dim); }
+
+    .panel-footer {
+      padding: 8px 14px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center; min-height: 36px;
+    }
+    .char-count { color: var(--dim); font-size: 10px; }
+    .btn-text {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: 10px; letter-spacing: 1px; font-family: 'Courier New', monospace;
+      transition: color 0.2s;
+    }
+    .btn-text:hover { color: var(--text); }
+    .btn-text.green { color: var(--green); }
+
+    /* Arrow button */
+    .translate-btn {
+      background: var(--dim); border: 1px solid var(--border); color: var(--muted);
+      cursor: default; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; transition: all 0.2s; min-height: 80px;
+      border-left: none; border-right: none;
+    }
+    @media(min-width: 640px) { .translate-btn { min-height: unset; } }
+    .translate-btn.ready {
+      background: var(--green); color: var(--bg); cursor: pointer;
+    }
+    .translate-btn.ready:hover { opacity: 0.85; }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid var(--border);
+      border-top-color: var(--green); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    /* Dots */
+    .dots { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
+    .dot-anim {
+      width: 6px; height: 6px; background: var(--green); border-radius: 50%;
+      animation: bounce 1s ease-in-out infinite;
+    }
+    .dot-anim:nth-child(2) { animation-delay: 0.15s; }
+    .dot-anim:nth-child(3) { animation-delay: 0.3s; }
+
+    /* Output */
+    .output-body {
+      flex: 1; padding: 16px; font-size: 15px; line-height: 1.7;
+      color: var(--dim); white-space: pre-wrap; overflow-y: auto; min-height: 180px;
+    }
+    .output-body.has-text { color: var(--text); }
+
+    /* Error */
+    .error-box {
+      margin-top: 12px; padding: 12px 16px;
+      border: 1px solid rgba(255,80,80,0.3); background: rgba(255,80,80,0.05);
+      color: #ff5050; font-size: 12px; border-radius: 4px;
+    }
+
+    /* Install banner */
+    .install-banner {
+      display: none; margin-top: 16px; padding: 12px 16px;
+      border: 1px solid rgba(0,255,136,0.2); background: rgba(0,255,136,0.04);
+      border-radius: 4px; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .install-banner.show { display: flex; }
+    .install-banner p { color: var(--green); font-size: 11px; letter-spacing: 1px; }
+    .install-banner button {
+      padding: 6px 16px; background: var(--green); color: var(--bg);
+      border: none; border-radius: 2px; font-family: 'Courier New', monospace;
+      font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+
+    .footer-hint { color: var(--dim); font-size: 10px; text-align: center; margin-top: 20px; letter-spacing: 1px; }
+
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes bounce { 0%,100% { transform:translateY(0); opacity:0.4; } 50% { transform:translateY(-7px); opacity:1; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="badge"><div class="dot"></div><span>LINGUA.AI</span></div>
+    <h1>Universal<br><em>Translator</em></h1>
+    <p class="subtitle">ANY LANGUAGE → ENGLISH · TAP ⟶ TO TRANSLATE</p>
+  </header>
+
+  <!-- Language pills -->
+  <div class="lang-row" id="langRow">
+    <button class="pill active" data-lang="Auto-detect">AUTO</button>
+    <button class="pill" data-lang="Spanish">ES</button>
+    <button class="pill" data-lang="French">FR</button>
+    <button class="pill" data-lang="German">DE</button>
+    <button class="pill" data-lang="Japanese">JA</button>
+    <button class="pill" data-lang="Chinese">ZH</button>
+    <button class="pill" data-lang="Arabic">AR</button>
+    <button class="pill" data-lang="Russian">RU</button>
+    <button class="pill" data-lang="Hindi">HI</button>
+    <button class="pill" data-lang="Korean">KO</button>
+    <select class="more" id="moreLangs">
+      <option value="">MORE ▾</option>
+      <option value="Italian">Italian</option>
+      <option value="Portuguese">Portuguese</option>
+      <option value="Turkish">Turkish</option>
+      <option value="Dutch">Dutch</option>
+      <option value="Polish">Polish</option>
+      <option value="Swedish">Swedish</option>
+      <option value="Greek">Greek</option>
+      <option value="Hebrew">Hebrew</option>
+      <option value="Thai">Thai</option>
+      <option value="Vietnamese">Vietnamese</option>
+      <option value="Indonesian">Indonesian</option>
+      <option value="Malay">Malay</option>
+      <option value="Swahili">Swahili</option>
+      <option value="Urdu">Urdu</option>
+      <option value="Bengali">Bengali</option>
+      <option value="Tamil">Tamil</option>
+      <option value="Punjabi">Punjabi</option>
+      <option value="Persian">Persian</option>
+      <option value="Romanian">Romanian</option>
+      <option value="Ukrainian">Ukrainian</option>
+      <option value="Czech">Czech</option>
+      <option value="Hungarian">Hungarian</option>
+      <option value="Finnish">Finnish</option>
+      <option value="Norwegian">Norwegian</option>
+      <option value="Danish">Danish</option>
+    </select>
+  </div>
+
+  <!-- Panels -->
+  <div class="panels">
+    <!-- Input -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label">INPUT</span>
+        <span class="detected-badge" id="detectedBadge" style="display:none"></span>
+      </div>
+      <textarea id="inputText" placeholder="Type or paste text in any language..." rows="7"></textarea>
+      <div class="panel-footer">
+        <span class="char-count" id="charCount">0 chars</span>
+        <button class="btn-text" id="clearBtn" style="display:none" onclick="clearAll()">CLEAR ×</button>
+      </div>
+    </div>
+
+    <!-- Translate button -->
+    <button class="translate-btn" id="translateBtn" onclick="translate()">→</button>
+
+    <!-- Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label">ENGLISH</span>
+        <button class="btn-text" id="copyBtn" style="display:none" onclick="copyResult()">COPY</button>
+      </div>
+      <div class="output-body" id="outputBody">Translation will appear here...</div>
+      <div class="panel-footer">
+        <span class="char-count" id="outCharCount"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox" style="display:none"></div>
+
+  <!-- Install banner -->
+  <div class="install-banner" id="installBanner">
+    <p>📲 INSTALL LINGUA AI ON YOUR HOME SCREEN</p>
+    <button onclick="installApp()">INSTALL</button>
+  </div>
+
+  <p class="footer-hint">SUPPORTS 100+ LANGUAGES · POWERED BY CLAUDE AI</p>
+</div>
+
+<script>
+  let selectedLang = 'Auto-detect';
+  let deferredPrompt = null;
+  let translatedResult = '';
+
+  // Lang pill selection
+  document.getElementById('langRow').addEventListener('click', e => {
+    if (e.target.classList.contains('pill')) {
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      e.target.classList.add('active');
+      selectedLang = e.target.dataset.lang;
+      document.getElementById('moreLangs').value = '';
+    }
+  });
+  document.getElementById('moreLangs').addEventListener('change', e => {
+    if (e.target.value) {
+      selectedLang = e.target.value;
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    }
+  });
+
+  // Input tracking
+  const inputEl = document.getElementById('inputText');
+  inputEl.addEventListener('input', () => {
+    const len = inputEl.value.length;
+    document.getElementById('charCount').textContent = len + ' chars';
+    document.getElementById('clearBtn').style.display = len ? 'block' : 'none';
+    document.getElementById('translateBtn').className = 'translate-btn' + (len ? ' ready' : '');
+  });
+
+  // Keyboard shortcut
+  inputEl.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') translate();
+  });
+
+  function clearAll() {
+    inputEl.value = '';
+    document.getElementById('charCount').textContent = '0 chars';
+    document.getElementById('clearBtn').style.display = 'none';
+    document.getElementById('translateBtn').className = 'translate-btn';
+    document.getElementById('outputBody').textContent = 'Translation will appear here...';
+    document.getElementById('outputBody').className = 'output-body';
+    document.getElementById('detectedBadge').style.display = 'none';
+    document.getElementById('copyBtn').style.display = 'none';
+    document.getElementById('outCharCount').textContent = '';
+    document.getElementById('errorBox').style.display = 'none';
+    translatedResult = '';
+  }
+
+  async function translate() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    const btn = document.getElementById('translateBtn');
+    const out = document.getElementById('outputBody');
+    const err = document.getElementById('errorBox');
+    const copyBtn = document.getElementById('copyBtn');
+    const badge = document.getElementById('detectedBadge');
+
+    btn.innerHTML = '<div class="spinner"></div>';
+    btn.className = 'translate-btn';
+    err.style.display = 'none';
+    copyBtn.style.display = 'none';
+    badge.style.display = 'none';
+    out.className = 'output-body';
+    out.innerHTML = '<div class="dots"><div class="dot-anim"></div><div class="dot-anim"></div><div class="dot-anim"></div></div>';
+
+    const langInstruction = selectedLang === 'Auto-detect'
+      ? 'Detect the language of the following text and translate it to English.'
+      : `Translate the following ${selectedLang} text to English.`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: `You are a precise language translator. ${langInstruction}
+Return ONLY a JSON object with no markdown or extra text:
+{"detected_language":"Language Name","translation":"The translated text here"}
+If already English: {"detected_language":"English","translation":"[original text]"}`,
+          messages: [{ role: 'user', content: text }]
+        })
+      });
+
+      const data = await response.json();
+      const raw = data.content?.[0]?.text || '';
+      let parsed;
+      try { parsed = JSON.parse(raw.trim()); } catch { parsed = { translation: raw, detected_language: '' }; }
+
+      translatedResult = parsed.translation || '';
+      out.textContent = translatedResult;
+      out.className = 'output-body has-text';
+      document.getElementById('outCharCount').textContent = translatedResult.length + ' chars';
+      copyBtn.style.display = 'block';
+
+      if (parsed.detected_language) {
+        badge.textContent = 'DETECTED: ' + parsed.detected_language.toUpperCase();
+        badge.style.display = 'block';
+      }
+    } catch (e) {
+      err.textContent = '⚠ Translation failed. Check your connection and try again.';
+      err.style.display = 'block';
+      out.textContent = 'Translation will appear here...';
+    }
+
+    btn.innerHTML = '→';
+    btn.className = 'translate-btn' + (inputEl.value ? ' ready' : '');
+  }
+
+  function copyResult() {
+    if (!translatedResult) return;
+    navigator.clipboard.writeText(translatedResult).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'COPIED ✓';
+      btn.classList.add('green');
+      setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('green'); }, 2000);
+    });
+  }
+
+  // PWA Install prompt
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBanner').classList.add('show');
+  });
+
+  function installApp() {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        deferredPrompt = null;
+        document.getElementById('installBanner').classList.remove('show');
+      });
+    }
+  }
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
